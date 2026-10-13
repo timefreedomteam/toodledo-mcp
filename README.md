@@ -132,6 +132,10 @@ For cloud deployment via HTTP transport, see [Cloud Deployment](docs/cloud-deplo
 
 See [Tool Reference](docs/tool-reference.md) for complete parameter documentation.
 
+### Basecamp
+
+The cloud deployment can also serve Basecamp tools. See [docs/basecamp.md](docs/basecamp.md).
+
 ## GTD Methodology
 
 The server maps Toodledo concepts to the Getting Things Done methodology:

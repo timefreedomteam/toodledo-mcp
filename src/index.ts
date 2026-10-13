@@ -5,6 +5,8 @@ import { ToodledoClient } from "./api/client.js";
 import { registerTaskTools } from "./tools/task-tools.js";
 import { registerFolderTools } from "./tools/folder-tools.js";
 import { registerGtdTools } from "./tools/gtd-tools.js";
+import { registerBasecampTools } from "./basecamp/tools.js";
+import { handleBasecampConnect, handleBasecampCallback } from "./basecamp/connect.js";
 import {
   handleResourceMetadata,
   handleAuthServerMetadata,
@@ -31,6 +33,11 @@ function createMcpServer(): McpServer {
   registerTaskTools(server, client);
   registerFolderTools(server, client);
   registerGtdTools(server, client);
+
+  // Basecamp keeps its sign-in in Secret Manager, so it needs the cloud project
+  if (process.env.GOOGLE_CLOUD_PROJECT) {
+    registerBasecampTools(server);
+  }
 
   return server;
 }
@@ -73,6 +80,16 @@ if (TRANSPORT === "stdio") {
 
     if (url.pathname === "/oauth/register" && req.method === "POST") {
       await handleRegister(req, res);
+      return;
+    }
+
+    if (url.pathname === "/basecamp/connect") {
+      await handleBasecampConnect(req, res);
+      return;
+    }
+
+    if (url.pathname === "/basecamp/callback") {
+      await handleBasecampCallback(req, res, url);
       return;
     }
 
