@@ -111,9 +111,26 @@ export function handleAuthServerMetadata(req: IncomingMessage, res: ServerRespon
 // --- Dynamic client registration (MCP spec requires it) ---
 
 export async function handleRegister(req: IncomingMessage, res: ServerResponse) {
-  await readBody(req);
-  // Accept any registration and return our fixed client credentials.
-  sendJson(res, 200, {
+  let metadata: Record<string, unknown> = {};
+  try {
+    metadata = JSON.parse(await readBody(req));
+  } catch {
+    // Treat a missing or malformed body as empty metadata
+  }
+  if (!Array.isArray(metadata.redirect_uris)) {
+    sendJson(res, 400, {
+      error: "invalid_redirect_uri",
+      error_description: "redirect_uris is required",
+    });
+    return;
+  }
+
+  // Accept any registration and return our fixed client credentials. RFC 7591
+  // requires echoing the registered metadata; MCP clients reject responses
+  // without redirect_uris.
+  sendJson(res, 201, {
+    ...metadata,
+    token_endpoint_auth_method: "client_secret_post",
     client_id: CLIENT_ID,
     client_secret: CLIENT_SECRET,
     client_id_issued_at: Math.floor(Date.now() / 1000),
