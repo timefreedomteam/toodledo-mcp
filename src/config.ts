@@ -16,8 +16,9 @@ export function getConfigDir(): string {
 
 export function loadConfig(): Config {
   // Try environment variables first
-  const clientId = process.env.TOODLEDO_CLIENT_ID;
-  const clientSecret = process.env.TOODLEDO_CLIENT_SECRET;
+  // Trim: secrets created with `echo ... | gcloud secrets create` carry a trailing newline
+  const clientId = process.env.TOODLEDO_CLIENT_ID?.trim();
+  const clientSecret = process.env.TOODLEDO_CLIENT_SECRET?.trim();
 
   if (clientId && clientSecret) {
     return { clientId, clientSecret };
@@ -27,7 +28,7 @@ export function loadConfig(): Config {
   if (existsSync(CONFIG_FILE)) {
     const data = JSON.parse(readFileSync(CONFIG_FILE, "utf-8"));
     if (data.client_id && data.client_secret) {
-      return { clientId: data.client_id, clientSecret: data.client_secret };
+      return { clientId: data.client_id.trim(), clientSecret: data.client_secret.trim() };
     }
   }
 
