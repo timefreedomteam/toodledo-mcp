@@ -1,6 +1,6 @@
 # Basecamp tools
 
-The cloud server also exposes Basecamp tools (`basecamp_*`), so Basecamp works in claude.ai on the web and on mobile through the same connector as Toodledo. They're enabled only when the server runs with `GOOGLE_CLOUD_PROJECT` set, because the Basecamp sign-in is stored in Secret Manager.
+The cloud server also serves Basecamp tools (`basecamp_*`) at `<server URL>/basecamp/mcp`, a separate claude.ai connector from Toodledo's `/mcp`. Both use the same connect password. They're enabled only when the server runs with `GOOGLE_CLOUD_PROJECT` set, because the Basecamp sign-in is stored in Secret Manager.
 
 ## One-time setup
 
@@ -8,6 +8,7 @@ The cloud server also exposes Basecamp tools (`basecamp_*`), so Basecamp works i
    `GCP_PROJECT_ID=toodledo-mcp-rmb bash scripts/setup-basecamp.sh`
 2. Register an app at https://launchpad.37signals.com/integrations. Set the Redirect URI to `<server URL>/basecamp/callback`.
 3. Open `<server URL>/basecamp/connect`. Enter the connect password and the app's Client ID and Secret, then approve access in Basecamp.
+4. In claude.ai, add a custom connector named Basecamp with URL `<server URL>/basecamp/mcp`, and enter the connect password.
 
 The server stores the app credentials in `BASECAMP_CLIENT_ID` and `BASECAMP_CLIENT_SECRET`. It stores the sign-in (with the Basecamp account ID) in `BASECAMP_TOKENS`, and refreshes it automatically. To switch accounts or re-authorize, open `/basecamp/connect` again.
 

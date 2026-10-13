@@ -24,19 +24,17 @@ const PORT = parseInt(process.env.PORT ?? "8080", 10);
 // One client shared by all requests so the name-to-ID caches persist
 const client = new ToodledoClient();
 
-function createMcpServer(): McpServer {
-  const server = new McpServer({
-    name: "toodledo",
-    version: "0.1.0",
-  });
+type ServerKind = "toodledo" | "basecamp";
 
-  registerTaskTools(server, client);
-  registerFolderTools(server, client);
-  registerGtdTools(server, client);
+function createMcpServer(kind: ServerKind = "toodledo"): McpServer {
+  const server = new McpServer({ name: kind, version: "0.1.0" });
 
-  // Basecamp keeps its sign-in in Secret Manager, so it needs the cloud project
-  if (process.env.GOOGLE_CLOUD_PROJECT) {
+  if (kind === "basecamp") {
     registerBasecampTools(server);
+  } else {
+    registerTaskTools(server, client);
+    registerFolderTools(server, client);
+    registerGtdTools(server, client);
   }
 
   return server;
@@ -95,8 +93,17 @@ if (TRANSPORT === "stdio") {
 
     // --- Protected endpoints (require bearer token) ---
 
-    const mcpPaths = new Set(["/mcp", "/mcp/", "/v1/mcp", "/v1/mcp/"]);
-    if (!mcpPaths.has(url.pathname)) {
+    // Each app is its own claude.ai connector: Toodledo at /mcp, Basecamp at /basecamp/mcp
+    const mcpPaths = new Map<string, ServerKind>([
+      ["/mcp", "toodledo"],
+      ["/mcp/", "toodledo"],
+      ["/v1/mcp", "toodledo"],
+      ["/v1/mcp/", "toodledo"],
+      ["/basecamp/mcp", "basecamp"],
+      ["/basecamp/mcp/", "basecamp"],
+    ]);
+    const kind = mcpPaths.get(url.pathname);
+    if (!kind) {
       res.writeHead(404);
       res.end("Not found");
       return;
@@ -111,7 +118,7 @@ if (TRANSPORT === "stdio") {
     // lost when Cloud Run restarts or routes requests to another instance.
     if (req.method === "POST") {
       const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
-      const server = createMcpServer();
+      const server = createMcpServer(kind);
       res.on("close", () => {
         transport.close();
         server.close();
