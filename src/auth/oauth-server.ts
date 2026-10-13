@@ -25,13 +25,27 @@ const REFRESH_TTL_MS = 180 * 24 * 60 * 60 * 1000;
 // Best-effort single-use for auth codes (per instance)
 const usedCodes = new Map<string, number>();
 
-type TokenType = "code" | "access" | "refresh";
+type TokenType = "code" | "access" | "refresh" | "state";
 
 interface TokenPayload {
   typ: TokenType;
   exp: number;
   redirectUri?: string;
   codeChallenge?: string;
+}
+
+// Helpers for other sign-in flows on this server (e.g. Basecamp)
+
+export function checkConnectPassword(password: string): boolean {
+  return !!CONNECT_PASSWORD && safeEqual(password, CONNECT_PASSWORD);
+}
+
+export function signState(): string {
+  return sign({ typ: "state", exp: Date.now() + CODE_TTL_MS });
+}
+
+export function verifyState(state: string | null): boolean {
+  return verify(state, "state") !== null;
 }
 
 function hmac(data: string): string {
