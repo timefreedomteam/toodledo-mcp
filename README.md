@@ -193,6 +193,6 @@ src/
 | `TRANSPORT` | Transport mode: `stdio` or `http` | `stdio` |
 | `PORT` | HTTP server port (when `TRANSPORT=http`) | `8080` |
 | `TOODLEDO_TOKENS` | Token JSON (enables Secret Manager cloud mode) | — |
-| `MCP_BEARER_TOKEN` | Bearer token for HTTP transport auth | — |
+| `CONNECT_PASSWORD` | Password entered once when connecting claude.ai (HTTP transport) | — |
 | `OAUTH_CLIENT_ID` | OAuth2 server client ID | `toodledo-mcp` |
 | `GOOGLE_CLOUD_PROJECT` | GCP project for Secret Manager API | — |

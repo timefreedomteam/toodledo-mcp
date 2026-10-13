@@ -3,17 +3,17 @@
 # Run once after creating the GCloud project and GitHub repo.
 #
 # Prerequisites:
-#   - GCloud project "toodledo-mcp" exists with billing linked
-#   - APIs enabled: Cloud Run, Artifact Registry, Secret Manager, IAM
-#   - GitHub repo exists (e.g. willsheldon/toodledo-mcp)
+#   - A GCloud project exists with billing linked
+#   - GitHub repo exists (e.g. timefreedomteam/toodledo-mcp)
+#   - Optional: the GitHub CLI (gh), signed in, to set the repo secrets for you
 #
-# Usage: bash scripts/setup-github-deploy.sh <github-org/repo>
-#   e.g.: bash scripts/setup-github-deploy.sh willsheldon/toodledo-mcp
+# Usage: GCP_PROJECT_ID=<project-id> bash scripts/setup-github-deploy.sh <github-org/repo>
+#   e.g.: GCP_PROJECT_ID=toodledo-mcp-rmb bash scripts/setup-github-deploy.sh timefreedomteam/toodledo-mcp
 
 set -euo pipefail
 
 GITHUB_REPO="${1:?Usage: $0 <github-org/repo>}"
-PROJECT="toodledo-mcp"
+PROJECT="${GCP_PROJECT_ID:?Set GCP_PROJECT_ID to your Google Cloud project ID}"
 REGION="us-central1"
 SA_NAME="github-deploy"
 SA_EMAIL="${SA_NAME}@${PROJECT}.iam.gserviceaccount.com"
@@ -116,11 +116,20 @@ gcloud iam service-accounts add-iam-policy-binding "$SA_EMAIL" \
 echo ""
 echo "=== Done ==="
 echo ""
-echo "Add these as GitHub repo secrets (Settings → Secrets → Actions):"
+if command -v gh &>/dev/null && gh auth status &>/dev/null; then
+  echo "Setting GitHub repo secrets and variable with gh..."
+  gh secret set WIF_PROVIDER --repo "$GITHUB_REPO" --body "$PROVIDER_ID"
+  gh secret set WIF_SERVICE_ACCOUNT --repo "$GITHUB_REPO" --body "$SA_EMAIL"
+  gh variable set GCP_PROJECT_ID --repo "$GITHUB_REPO" --body "$PROJECT"
+  echo "Done."
+else
+  echo "Add these in the GitHub repo (Settings → Secrets and variables → Actions):"
+  echo ""
+  echo "  Secret   WIF_PROVIDER:        ${PROVIDER_ID}"
+  echo "  Secret   WIF_SERVICE_ACCOUNT: ${SA_EMAIL}"
+  echo "  Variable GCP_PROJECT_ID:      ${PROJECT}"
+fi
 echo ""
-echo "  WIF_PROVIDER:       ${PROVIDER_ID}"
-echo "  WIF_SERVICE_ACCOUNT: ${SA_EMAIL}"
+echo "The deploy workflow (.github/workflows/deploy.yml) references these."
 echo ""
-echo "The deploy workflow (.github/workflows/deploy.yml) references these secrets."
-echo ""
-echo "Next: run 'bash scripts/setup-secrets.sh' to create the Toodledo secrets."
+echo "Next: run 'GCP_PROJECT_ID=$PROJECT bash scripts/setup-secrets.sh' to create the Toodledo secrets."

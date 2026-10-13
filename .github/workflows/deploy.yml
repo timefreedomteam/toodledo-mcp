@@ -3,9 +3,10 @@ name: Deploy to Cloud Run
 on:
   push:
     branches: [master]
+  workflow_dispatch:
 
 env:
-  PROJECT_ID: toodledo-mcp
+  PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
   REGION: us-central1
   SERVICE: toodledo-mcp
   REPO: toodledo-mcp
@@ -50,5 +51,7 @@ jobs:
             --port=8080 \
             --memory=256Mi \
             --timeout=120 \
-            --set-secrets=TOODLEDO_CLIENT_ID=TOODLEDO_CLIENT_ID:latest,TOODLEDO_CLIENT_SECRET=TOODLEDO_CLIENT_SECRET:latest,TOODLEDO_TOKENS=TOODLEDO_TOKENS:latest,MCP_BEARER_TOKEN=MCP_BEARER_TOKEN:latest \
+            --max-instances=1 \
+            --set-env-vars=GOOGLE_CLOUD_PROJECT=${{ env.PROJECT_ID }} \
+            --set-secrets=TOODLEDO_CLIENT_ID=TOODLEDO_CLIENT_ID:latest,TOODLEDO_CLIENT_SECRET=TOODLEDO_CLIENT_SECRET:latest,TOODLEDO_TOKENS=TOODLEDO_TOKENS:latest,CONNECT_PASSWORD=CONNECT_PASSWORD:latest \
             --project=${{ env.PROJECT_ID }}
