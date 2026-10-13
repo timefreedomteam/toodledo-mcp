@@ -2,11 +2,11 @@
 # Creates Secret Manager secrets for the Toodledo MCP server.
 # Run once after creating the GCloud project.
 #
-# Usage: bash scripts/setup-secrets.sh
+# Usage: GCP_PROJECT_ID=<project-id> bash scripts/setup-secrets.sh
 
 set -euo pipefail
 
-PROJECT="toodledo-mcp"
+PROJECT="${GCP_PROJECT_ID:?Set GCP_PROJECT_ID to your Google Cloud project ID}"
 REGION="us-central1"
 
 echo "=== Toodledo MCP - Secret Manager Setup ==="
@@ -30,14 +30,13 @@ create_secret() {
 create_secret "TOODLEDO_CLIENT_ID"
 create_secret "TOODLEDO_CLIENT_SECRET"
 create_secret "TOODLEDO_TOKENS"
-create_secret "MCP_BEARER_TOKEN"
+create_secret "CONNECT_PASSWORD"
 
 echo ""
 echo "=== Setting secret values ==="
 
 # TOODLEDO_CLIENT_ID
-read -rp "Toodledo Client ID [claudemcp]: " CLIENT_ID
-CLIENT_ID="${CLIENT_ID:-claudemcp}"
+read -rp "Toodledo Client ID: " CLIENT_ID
 echo -n "$CLIENT_ID" | gcloud secrets versions add "TOODLEDO_CLIENT_ID" --data-file=- --project="$PROJECT"
 
 # TOODLEDO_CLIENT_SECRET
@@ -56,12 +55,16 @@ else
   echo "You'll need to manually add the TOODLEDO_TOKENS secret version."
 fi
 
-# MCP_BEARER_TOKEN - generate a random one
-BEARER_TOKEN=$(openssl rand -base64 32 | tr -d '/+=' | head -c 48)
-echo -n "$BEARER_TOKEN" | gcloud secrets versions add "MCP_BEARER_TOKEN" --data-file=- --project="$PROJECT"
-echo ""
-echo "Generated MCP Bearer Token: $BEARER_TOKEN"
-echo "Save this! You'll need it to configure claude.ai's remote MCP server."
+# CONNECT_PASSWORD - asked for once when connecting claude.ai
+while true; do
+  read -rsp "Choose a connect password (you'll type it once when connecting claude.ai): " PASSWORD
+  echo ""
+  read -rsp "Type it again: " PASSWORD2
+  echo ""
+  [[ -n "$PASSWORD" && "$PASSWORD" == "$PASSWORD2" ]] && break
+  echo "Passwords were empty or didn't match. Try again."
+done
+echo -n "$PASSWORD" | gcloud secrets versions add "CONNECT_PASSWORD" --data-file=- --project="$PROJECT"
 
 echo ""
 echo "=== Granting Cloud Run access ==="
@@ -70,7 +73,7 @@ echo "=== Granting Cloud Run access ==="
 PROJECT_NUMBER=$(gcloud projects describe "$PROJECT" --format='value(projectNumber)')
 SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
 
-for SECRET in TOODLEDO_CLIENT_ID TOODLEDO_CLIENT_SECRET TOODLEDO_TOKENS MCP_BEARER_TOKEN; do
+for SECRET in TOODLEDO_CLIENT_ID TOODLEDO_CLIENT_SECRET TOODLEDO_TOKENS CONNECT_PASSWORD; do
   gcloud secrets add-iam-policy-binding "$SECRET" \
     --member="serviceAccount:$SA" \
     --role="roles/secretmanager.secretAccessor" \
@@ -91,4 +94,4 @@ echo "Secrets created and service account ($SA) granted access."
 echo ""
 echo "Next steps:"
 echo "  1. Push to master — GitHub Actions will build and deploy automatically"
-echo "  2. Configure claude.ai with the Cloud Run URL and bearer token"
+echo "  2. In claude.ai, add a custom connector with <Cloud Run URL>/mcp and enter your connect password"
