@@ -1,10 +1,11 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ToodledoClient } from "../api/client.js";
-import { getTasks } from "../api/tasks.js";
+import { getTasks, editTasks } from "../api/tasks.js";
 import { STATUS_MAP, PRIORITY_MAP } from "../types.js";
 import type { ToodledoTask } from "../types.js";
 import { formatTaskList } from "../format.js";
+import { isOverdue, isDueOn, todayToodledo } from "../dates.js";
 
 export function registerGtdTools(server: McpServer, client: ToodledoClient) {
   server.tool(
@@ -74,7 +75,6 @@ export function registerGtdTools(server: McpServer, client: ToodledoClient) {
         await client.refreshGoals();
 
         const tasks = await getTasks(client, { comp: 0 });
-        const now = Math.floor(Date.now() / 1000);
         const sections: string[] = [];
 
         // Inbox: tasks with no folder AND no context
@@ -87,7 +87,7 @@ export function registerGtdTools(server: McpServer, client: ToodledoClient) {
         }
 
         // Overdue tasks
-        const overdue = tasks.filter((t) => t.duedate && t.duedate < now);
+        const overdue = tasks.filter((t) => isOverdue(t.duedate));
         sections.push(`\n## Overdue (${overdue.length})`);
         if (overdue.length > 0) {
           overdue.sort((a, b) => a.duedate - b.duedate);
@@ -155,6 +155,79 @@ export function registerGtdTools(server: McpServer, client: ToodledoClient) {
   );
 
   server.tool(
+    "toodledo_reschedule_overdue",
+    "Move every incomplete task whose due date has passed to today (or another date). " +
+      "Pass the user's local date as `date` when known, since the server may run in UTC. " +
+      "Use dry_run first if the user wants to see what will change.",
+    {
+      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()
+        .describe("New due date as YYYY-MM-DD (defaults to today in the server's time zone)"),
+      dry_run: z.boolean().optional().describe("List the overdue tasks without changing them"),
+    },
+    async (params) => {
+      try {
+        await client.refreshFolders();
+        await client.refreshContexts();
+        await client.refreshGoals();
+
+        const target = todayToodledo(params.date);
+        const tasks = await getTasks(client, { comp: 0 });
+        const overdue = tasks.filter((t) => isOverdue(t.duedate, target));
+        overdue.sort((a, b) => a.duedate - b.duedate);
+
+        const dateLabel = new Date(target * 1000).toISOString().split("T")[0];
+
+        if (overdue.length === 0) {
+          return {
+            content: [{ type: "text" as const, text: `No overdue tasks before ${dateLabel}.` }],
+          };
+        }
+
+        if (params.dry_run) {
+          return {
+            content: [{
+              type: "text" as const,
+              text: `${overdue.length} overdue tasks would move to ${dateLabel}:\n\n${formatTaskList(overdue, client)}`,
+            }],
+          };
+        }
+
+        const edits = overdue.map((t) => {
+          const edit: { id: number } & Record<string, unknown> = { id: t.id, duedate: target };
+          // Keep the time of day on tasks that have a due time
+          if (t.duetime) edit.duetime = t.duetime + (target - t.duedate);
+          return edit;
+        });
+
+        const { updated, errors } = await editTasks(client, edits);
+
+        // The edit response only carries a few fields, so show the fetched tasks with their new dates
+        const updatedIds = new Set(updated.map((t) => Number(t.id)));
+        const moved = overdue
+          .filter((t) => updatedIds.has(t.id))
+          .map((t) => ({ ...t, ...edits.find((e) => e.id === t.id) }) as ToodledoTask);
+
+        const lines = [`Moved ${moved.length} of ${overdue.length} overdue tasks to ${dateLabel}.`];
+        if (moved.length > 0) lines.push("", formatTaskList(moved, client));
+        if (errors.length > 0) {
+          lines.push("", `Failed (${errors.length}):`);
+          for (const e of errors) lines.push(`- Task ${e.id}: ${e.error}`);
+        }
+
+        return {
+          content: [{ type: "text" as const, text: lines.join("\n") }],
+          isError: moved.length === 0,
+        };
+      } catch (err) {
+        return {
+          content: [{ type: "text" as const, text: `Error rescheduling overdue tasks: ${err}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.tool(
     "toodledo_gtd_dashboard",
     "High-level dashboard: task counts by folder, context, status, and priority. Includes overdue count and today's due tasks.",
     {},
@@ -165,22 +238,17 @@ export function registerGtdTools(server: McpServer, client: ToodledoClient) {
         await client.refreshGoals();
 
         const tasks = await getTasks(client, { comp: 0 });
-        const now = Math.floor(Date.now() / 1000);
-        const todayStart = Math.floor(new Date().setHours(0, 0, 0, 0) / 1000);
-        const todayEnd = todayStart + 86400;
 
         const sections: string[] = [];
         sections.push(`# Task Dashboard\n`);
         sections.push(`**Total incomplete tasks:** ${tasks.length}`);
 
         // Overdue
-        const overdue = tasks.filter((t) => t.duedate && t.duedate < now);
+        const overdue = tasks.filter((t) => isOverdue(t.duedate));
         sections.push(`**Overdue:** ${overdue.length}`);
 
         // Due today
-        const dueToday = tasks.filter(
-          (t) => t.duedate && t.duedate >= todayStart && t.duedate < todayEnd
-        );
+        const dueToday = tasks.filter((t) => isDueOn(t.duedate));
         sections.push(`**Due today:** ${dueToday.length}`);
 
         // Starred

@@ -128,6 +128,7 @@ For cloud deployment via HTTP transport, see [Cloud Deployment](docs/cloud-deplo
 | `toodledo_gtd_next_actions` | Get all Next Action tasks, optionally filtered by context |
 | `toodledo_gtd_review` | Weekly review: inbox, stalled projects, overdue, waiting-for, someday/maybe |
 | `toodledo_gtd_dashboard` | Dashboard with counts by folder, context, status, priority, and due dates |
+| `toodledo_reschedule_overdue` | Move all overdue tasks to today (or a given date) in one call |
 
 See [Tool Reference](docs/tool-reference.md) for complete parameter documentation.
 

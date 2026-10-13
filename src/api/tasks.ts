@@ -63,6 +63,42 @@ export async function editTask(
   return data[0]!;
 }
 
+export interface TaskEditResult {
+  updated: ToodledoTask[];
+  errors: { id: number; error: string }[];
+}
+
+// Toodledo accepts at most 50 tasks per edit request
+const EDIT_BATCH_SIZE = 50;
+
+export async function editTasks(
+  client: ToodledoClient,
+  edits: Array<{ id: number } & Record<string, unknown>>
+): Promise<TaskEditResult> {
+  const result: TaskEditResult = { updated: [], errors: [] };
+
+  for (let i = 0; i < edits.length; i += EDIT_BATCH_SIZE) {
+    const batch = edits.slice(i, i + EDIT_BATCH_SIZE);
+    const data = (await client.post("/tasks/edit.php", {
+      tasks: JSON.stringify(batch),
+    })) as Array<Record<string, unknown>>;
+
+    // Per-task failures come back inline as {errorCode, errorDesc, ref}
+    data.forEach((item, idx) => {
+      if ("errorCode" in item) {
+        result.errors.push({
+          id: Number(item.ref ?? item.id ?? batch[idx]?.id),
+          error: String(item.errorDesc ?? item.errorCode),
+        });
+      } else {
+        result.updated.push(item as unknown as ToodledoTask);
+      }
+    });
+  }
+
+  return result;
+}
+
 export async function deleteTask(
   client: ToodledoClient,
   id: number

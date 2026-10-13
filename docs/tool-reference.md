@@ -207,7 +207,7 @@ Results are sorted by priority (descending), then by due date (ascending).
 GTD weekly review summary. Shows five sections:
 
 1. **Inbox** — tasks with no folder AND no context (unprocessed items)
-2. **Overdue** — tasks past their due date
+2. **Overdue** — tasks whose due date is before today
 3. **Stalled Projects** — folders that have tasks but none with "Next Action" status
 4. **Waiting For** — tasks with "Waiting" status
 5. **Someday/Maybe** — tasks with "Someday" status
@@ -223,3 +223,16 @@ High-level dashboard with task counts by folder, context, status, and priority. 
 Shows the top 15 folders and contexts by task count. If there are tasks due today, they are listed individually at the bottom.
 
 No parameters.
+
+---
+
+### `toodledo_reschedule_overdue`
+
+Moves every incomplete task whose due date is before today to today, in one call. Tasks with a due time keep their time of day. A task counts as overdue only after its due day has ended.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `date` | string | No | New due date as YYYY-MM-DD. Defaults to today in the server's time zone; pass your local date when the server runs in UTC (e.g. Cloud Run). |
+| `dry_run` | boolean | No | List the overdue tasks without changing them |
+
+Example: *"Push all my overdue tasks to today."*
