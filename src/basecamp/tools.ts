@@ -68,9 +68,14 @@ function collectTodos(data: unknown): Todo[] {
   return [];
 }
 
-function todoList(todos: Todo[], empty: string): string {
-  return todos.length ? todos.map(formatTodo).join("\n\n") : empty;
+function todoList(todos: Todo[], empty: string, limit?: number): string {
+  if (!todos.length) return empty;
+  const shown = limit ? todos.slice(0, limit) : todos;
+  const more = todos.length - shown.length;
+  return shown.map(formatTodo).join("\n\n") + (more ? `\n\n...and ${more} more (${todos.length} total). Ask for a higher limit to see them.` : "");
 }
+
+const limitParam = z.number().int().min(1).max(500).optional().describe("Max to-dos to show (default 50)");
 
 export function registerBasecampTools(server: McpServer) {
   // --- Projects & people ---
@@ -109,25 +114,25 @@ export function registerBasecampTools(server: McpServer) {
   server.tool(
     "basecamp_my_todos",
     "List open Basecamp to-dos assigned to me (or another person) across all projects.",
-    { person: z.string().optional().describe("Person's name; defaults to me") },
+    { person: z.string().optional().describe("Person's name; defaults to me"), limit: limitParam },
     (params) =>
       run(async () => {
         const personId = params.person ? (await resolvePeople([params.person]))[0] : await myId();
         const todos = collectTodos(await get<unknown>(`/reports/todos/assigned/${personId}.json`)).filter((t) => !t.completed);
         todos.sort((a, b) => (a.due_on ?? "9999").localeCompare(b.due_on ?? "9999"));
-        return todoList(todos, "No open to-dos assigned.");
+        return todoList(todos, "No open to-dos assigned.", params.limit ?? 50);
       })
   );
 
   server.tool(
     "basecamp_overdue_todos",
-    "List every overdue Basecamp to-do across all projects.",
-    {},
-    () =>
+    "List overdue Basecamp to-dos across all projects, most overdue first.",
+    { limit: limitParam },
+    (params) =>
       run(async () => {
         const todos = collectTodos(await get<unknown>("/reports/todos/overdue.json"));
         todos.sort((a, b) => (a.due_on ?? "").localeCompare(b.due_on ?? ""));
-        return todoList(todos, "Nothing is overdue.");
+        return todoList(todos, "Nothing is overdue.", params.limit ?? 50);
       })
   );
 
