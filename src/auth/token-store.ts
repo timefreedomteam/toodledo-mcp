@@ -56,22 +56,29 @@ async function loadTokens(): Promise<TokenData> {
   return JSON.parse(readFileSync(TOKEN_FILE, "utf-8")) as TokenData;
 }
 
-export async function getAccessToken(): Promise<string> {
+let refreshing: Promise<string> | null = null;
+
+/** Pass force=true to swap a still-valid token for a new one (Toodledo rate-limits per token). */
+export async function getAccessToken(force = false): Promise<string> {
   const tokens = await loadTokens();
 
   // If token is still valid (with buffer), return it
-  if (Date.now() < tokens.expires_at - REFRESH_BUFFER_MS) {
+  if (!force && Date.now() < tokens.expires_at - REFRESH_BUFFER_MS) {
     return tokens.access_token;
   }
 
-  // Token expired or about to expire - refresh it
-  const config = loadConfig();
-  const refreshed = await refreshAccessToken(
-    tokens.refresh_token,
-    config.clientId,
-    config.clientSecret
-  );
-
-  saveTokens(refreshed);
-  return refreshed.access_token;
+  // Token expired, about to expire, or rate-limited - refresh it.
+  // Concurrent callers share one refresh so the refresh token is only spent once.
+  if (!refreshing) {
+    const config = loadConfig();
+    refreshing = refreshAccessToken(tokens.refresh_token, config.clientId, config.clientSecret)
+      .then((refreshed) => {
+        saveTokens(refreshed);
+        return refreshed.access_token;
+      })
+      .finally(() => {
+        refreshing = null;
+      });
+  }
+  return refreshing;
 }
