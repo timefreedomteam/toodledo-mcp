@@ -38,3 +38,4 @@ MCP server connecting Claude to Toodledo.com for GTD-based task management.
 
 ## Working With the User
 - When a PR is ready, offer to merge it for the user (they prefer that over finding the GitHub button themselves)
+- Keep replies short and outcome-focused; skip technical behind-the-scenes detail unless asked
