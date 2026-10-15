@@ -34,3 +34,4 @@ MCP server connecting Claude to Toodledo.com for GTD-based task management.
 - **Contexts = Batching** for GTD context batching (e.g. @Office, @Home, @Gemba)
 - When asked to show "inbox", search by context `.inbox`
 - When adding a quick task / brain dump, set context to `.inbox` unless told otherwise
+- User is in **Pacific Time** (America/Los_Angeles). "Today"/"tomorrow" mean Pacific dates; the server computes today via the `TIMEZONE` env var (default Pacific)

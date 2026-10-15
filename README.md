@@ -200,3 +200,4 @@ src/
 | `CONNECT_PASSWORD` | Password entered once when connecting claude.ai (HTTP transport) | — |
 | `OAUTH_CLIENT_ID` | OAuth2 server client ID | `toodledo-mcp` |
 | `GOOGLE_CLOUD_PROJECT` | GCP project for Secret Manager API | — |
+| `TIMEZONE` | IANA time zone used for "today" and overdue checks | `America/Los_Angeles` |
