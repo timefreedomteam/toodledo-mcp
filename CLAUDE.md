@@ -35,3 +35,6 @@ MCP server connecting Claude to Toodledo.com for GTD-based task management.
 - When asked to show "inbox", search by context `.inbox`
 - When adding a quick task / brain dump, set context to `.inbox` unless told otherwise
 - User is in **Pacific Time** (America/Los_Angeles). "Today"/"tomorrow" mean Pacific dates; the server computes today via the `TIMEZONE` env var (default Pacific)
+
+## Working With the User
+- When a PR is ready, offer to merge it for the user (they prefer that over finding the GitHub button themselves)
