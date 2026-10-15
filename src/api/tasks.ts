@@ -44,8 +44,10 @@ export async function addTask(
   client: ToodledoClient,
   task: Record<string, unknown>
 ): Promise<ToodledoTask> {
+  // Without `fields`, Toodledo returns only id/title/modified/completed
   const data = (await client.post("/tasks/add.php", {
     tasks: JSON.stringify([task]),
+    fields: TASK_FIELDS,
   })) as ToodledoTask[];
 
   return data[0]!;
@@ -58,6 +60,7 @@ export async function editTask(
 ): Promise<ToodledoTask> {
   const data = (await client.post("/tasks/edit.php", {
     tasks: JSON.stringify([{ id, ...updates }]),
+    fields: TASK_FIELDS,
   })) as ToodledoTask[];
 
   return data[0]!;
@@ -81,6 +84,7 @@ export async function editTasks(
     const batch = edits.slice(i, i + EDIT_BATCH_SIZE);
     const data = (await client.post("/tasks/edit.php", {
       tasks: JSON.stringify(batch),
+      fields: TASK_FIELDS,
     })) as Array<Record<string, unknown>>;
 
     // Per-task failures come back inline as {errorCode, errorDesc, ref}
