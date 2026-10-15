@@ -7,12 +7,13 @@ export function dateToToodledo(date: string): number {
   return Math.floor(new Date(date + "T12:00:00Z").getTime() / 1000);
 }
 
-/** Today's date as YYYY-MM-DD in the server's local time zone (honors TZ). */
+/** The user's time zone; the cloud server runs in UTC, so "today" is computed here instead. */
+export const USER_TIMEZONE = process.env.TIMEZONE || "America/Los_Angeles";
+
+/** Today's date as YYYY-MM-DD in the user's time zone. */
 export function localToday(): string {
-  const d = new Date();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${d.getFullYear()}-${mm}-${dd}`;
+  // en-CA formats dates as YYYY-MM-DD
+  return new Intl.DateTimeFormat("en-CA", { timeZone: USER_TIMEZONE }).format(new Date());
 }
 
 /** Noon-GMT timestamp for today (or the given YYYY-MM-DD). */

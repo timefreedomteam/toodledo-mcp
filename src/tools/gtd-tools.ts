@@ -157,11 +157,11 @@ export function registerGtdTools(server: McpServer, client: ToodledoClient) {
   server.tool(
     "toodledo_reschedule_overdue",
     "Move every incomplete task whose due date has passed to today (or another date). " +
-      "Pass the user's local date as `date` when known, since the server may run in UTC. " +
+      "Today is computed in the user's time zone (TIMEZONE env var, default America/Los_Angeles). " +
       "Use dry_run first if the user wants to see what will change.",
     {
       date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()
-        .describe("New due date as YYYY-MM-DD (defaults to today in the server's time zone)"),
+        .describe("New due date as YYYY-MM-DD (defaults to today in the user's time zone, Pacific unless TIMEZONE is set)"),
       dry_run: z.boolean().optional().describe("List the overdue tasks without changing them"),
     },
     async (params) => {
