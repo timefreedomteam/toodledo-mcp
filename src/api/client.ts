@@ -31,8 +31,21 @@ export class ToodledoClient {
   private contextsLoaded = false;
   private goalsLoaded = false;
 
+  /** Run a request, retrying once with a new token if Toodledo says this one hit its rate limit. */
+  private async withTokenRetry(request: (token: string) => Promise<unknown>): Promise<unknown> {
+    try {
+      return await request(await getAccessToken());
+    } catch (err) {
+      if (!(err instanceof ToodledoApiError) || !/too many requests per token/i.test(err.message)) throw err;
+      return await request(await getAccessToken(true));
+    }
+  }
+
   async get(path: string, params?: Record<string, string>): Promise<unknown> {
-    const token = await getAccessToken();
+    return this.withTokenRetry((token) => this.getWithToken(token, path, params));
+  }
+
+  private async getWithToken(token: string, path: string, params?: Record<string, string>): Promise<unknown> {
     const url = new URL(`${BASE_URL}${path}`);
     url.searchParams.set("access_token", token);
     if (params) {
@@ -48,7 +61,10 @@ export class ToodledoClient {
   }
 
   async post(path: string, body: Record<string, string>): Promise<unknown> {
-    const token = await getAccessToken();
+    return this.withTokenRetry((token) => this.postWithToken(token, path, body));
+  }
+
+  private async postWithToken(token: string, path: string, body: Record<string, string>): Promise<unknown> {
     const params = new URLSearchParams({ ...body, access_token: token });
 
     const response = await fetch(`${BASE_URL}${path}`, {
